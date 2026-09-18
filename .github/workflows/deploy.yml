@@ -1,0 +1,18 @@
+name: Deploy EcoTrack
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: unzip -q ecotrack.zip -d site
+      - run: cd site && npm ci && npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+      - uses: actions/deploy-pages@v4
