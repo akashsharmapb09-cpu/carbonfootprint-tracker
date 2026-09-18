@@ -5,14 +5,50 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - run: unzip -q ecotrack.zip -d site
-      - run: cd site && npm ci && npm run build
+      - name: Prepare site
+        run: |
+          rm -rf site
+          mkdir site
+          unzip -q ecotrack.zip -d site
+          if [ ! -f site/index.html ]; then
+            INDEX=$(find site -type f -name index.html -print -quit)
+            test -n "$INDEX"
+            ROOT=$(dirname "$INDEX")
+            cp -a "$ROOT"/. site/
+          fi
+          test -f site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install dependencies
+        working-directory: site
+        run: npm install
+      - name: Build
+        working-directory: site
+        run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site/dist
-      - uses: actions/deploy-pages@v4
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
